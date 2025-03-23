@@ -138,7 +138,7 @@ class Comment(CreatedModel):
         verbose_name = 'комментарий'
         verbose_name_plural = 'комментарии'
         default_related_name = 'comments'
-        
+
     def __str__(self):
         if len(self.text) > STR_SLICE:
             return self.text[:STR_SLICE] + '...'

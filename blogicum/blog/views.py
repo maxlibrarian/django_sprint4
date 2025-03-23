@@ -18,6 +18,7 @@ class PostAuthorMixin(UserPassesTestMixin):
     def test_func(self):
         return self.get_object().author == self.request.user
 
+
 class PostMixin(PostAuthorMixin, LoginRequiredMixin):
     model = Post
     template_name = 'blog/create.html'
