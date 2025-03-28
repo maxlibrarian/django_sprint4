@@ -2,55 +2,16 @@ from django.views.generic import (
     ListView, CreateView, UpdateView, DeleteView, DetailView
 )
 from django.urls import reverse
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import get_user_model
-from django.shortcuts import get_object_or_404, redirect
-from .models import Post, Category, Comment
-from .querysets import post_annotation
+from django.shortcuts import get_object_or_404
+from .models import Post, Category
 from blogicum.settings import PAGINATION
 from .forms import ProfileEditForm, PostForm, CommentForm
-from django.utils.timezone import now
+from . mixins import PostAuthorMixin, PostMixin, CommentMixin
+
 
 User = get_user_model()
-
-
-class PostAuthorMixin(UserPassesTestMixin):
-    def test_func(self):
-        return self.get_object().author == self.request.user
-
-
-class PostMixin(PostAuthorMixin, LoginRequiredMixin):
-    model = Post
-    template_name = 'blog/create.html'
-    pk_url_kwarg = 'post_id'
-
-    def handle_no_permission(self):
-        post_id = self.kwargs.get(self.pk_url_kwarg)
-        return redirect(reverse(
-            'blog:post_detail', kwargs={'post_id': post_id}
-        ))
-
-    def get_success_url(self):
-        return reverse(
-            'blog:profile',
-            kwargs={'username_slug': self.request.user.username}
-        )
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['form'] = PostForm(instance=self.object)
-        return context
-
-
-class CommentMixin(LoginRequiredMixin):
-    model = Comment
-    template_name = 'blog/comment.html'
-    pk_url_kwarg = 'comment_id'
-
-    def get_success_url(self):
-        return reverse(
-            'blog:post_detail', kwargs={'post_id': self.kwargs.get('post_id')}
-        )
 
 
 class PostIndexView(ListView):
@@ -60,7 +21,7 @@ class PostIndexView(ListView):
     paginate_by = PAGINATION
 
     def get_queryset(self):
-        return post_annotation(Post.objects.published())
+        return Post.objects.published().post_annotation()
 
 
 class PostDetailView(DetailView):
@@ -98,7 +59,7 @@ class CategoryPostsView(ListView):
             slug=self.kwargs['category_slug'],
             is_published=True
         )
-        return self.category.posts.published()
+        return self.category.posts.published().post_annotation()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -120,14 +81,10 @@ class ProfileView(ListView):
 
     def get_queryset(self):
         author = self.get_author()
-        posts_list = post_annotation(author.posts.all())
+        posts_list = Post.objects.filter(author=author).post_annotation()
 
         if self.request.user != author:
-            posts_list = posts_list.filter(
-                pub_date__lte=now(),
-                is_published=True,
-                category__is_published=True
-            )
+            posts_list = posts_list.published()
 
         return posts_list
 
