@@ -81,7 +81,7 @@ class ProfileView(ListView):
 
     def get_queryset(self):
         author = self.get_author()
-        posts_list = Post.objects.filter(author=author).post_annotation()
+        posts_list = author.posts.post_annotation()
 
         if self.request.user != author:
             posts_list = posts_list.published()
